@@ -12,6 +12,16 @@ on:
       - "requirements.txt"
       - "AgateRemote.spec"
       - ".github/workflows/build-windows.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "agent/**"
+      - "web/**"
+      - "server.py"
+      - "profiles.json"
+      - "requirements.txt"
+      - "AgateRemote.spec"
+      - ".github/workflows/build-windows.yml"
 
 jobs:
   build:
