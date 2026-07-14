@@ -27,7 +27,8 @@ def icon_image() -> Image.Image:
 
 
 def qr_path() -> Path:
-    payload = json.dumps({"url": access_urls()[-1], "pin": PAIR_PIN, "name": socket.gethostname()})
+    urls = access_urls()
+    payload = json.dumps({"url": urls[0], "urls": urls, "pin": PAIR_PIN, "name": socket.gethostname()})
     image = qrcode.make(payload)
     path = DATA_DIR / "pairing-qr.png"
     image.save(path)
@@ -45,7 +46,7 @@ def start_tray(start_server: Callable[[], None]) -> None:
         os.startfile(path) if os.name == "nt" else webbrowser.open(path.as_uri())
 
     def copy_pairing(_icon=None, _item=None) -> None:
-        pyperclip.copy(f"{access_urls()[-1]} | PIN {PAIR_PIN}")
+        pyperclip.copy(f"{access_urls()[0]} | PIN {PAIR_PIN}")
 
     def open_shared(_icon=None, _item=None) -> None:
         os.startfile(SHARED_DIR) if os.name == "nt" else webbrowser.open(SHARED_DIR.as_uri())
