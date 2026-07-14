@@ -4,3 +4,9 @@ pyautogui==0.9.54
 Pillow==11.3.0
 psutil==7.0.0
 pyperclip==1.9.0
+pystray==0.19.5
+qrcode[pil]==8.2
+mss==10.0.0
+aiortc==1.13.0
+python-multipart==0.0.20
+pyinstaller==6.14.2
