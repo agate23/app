@@ -3,11 +3,11 @@ name: Build Windows EXE
 on:
   workflow_dispatch:
   push:
-    branches:
-      - agent/agate-remote-v2
+    branches: [agent/agate-remote-v2]
     paths:
       - "agent/**"
       - "web/**"
+      - "server.py"
       - "profiles.json"
       - "requirements.txt"
       - "AgateRemote.spec"
@@ -22,11 +22,13 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - name: Install dependencies
+      - name: Instalar dependências
         run: pip install -r requirements.txt
-      - name: Build executable
-        run: pyinstaller --noconfirm AgateRemote.spec
-      - name: Upload executable
+      - name: Verificar sintaxe
+        run: python -m compileall server.py agent
+      - name: Gerar executável
+        run: pyinstaller --noconfirm --clean AgateRemote.spec
+      - name: Enviar executável
         uses: actions/upload-artifact@v4
         with:
           name: AgateRemote-Windows
