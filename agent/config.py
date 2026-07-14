@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ipaddress
 import json
 import os
 import secrets
@@ -31,14 +32,25 @@ def local_ipv4() -> str:
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
         sock.connect(("8.8.8.8", 80))
-        return sock.getsockname()[0]
+        address = sock.getsockname()[0]
+        if not address.startswith("127."):
+            return address
     except OSError:
-        return "127.0.0.1"
+        pass
     finally:
         sock.close()
+    try:
+        addresses = socket.gethostbyname_ex(socket.gethostname())[2]
+        for address in addresses:
+            if not address.startswith("127."):
+                return address
+    except OSError:
+        pass
+    return "127.0.0.1"
 
 
 def tailscale_ipv4() -> str | None:
+    network = ipaddress.ip_network("100.64.0.0/10")
     for executable in ("tailscale", "tailscale.exe"):
         try:
             result = subprocess.run(
@@ -52,8 +64,14 @@ def tailscale_ipv4() -> str | None:
         except (OSError, subprocess.SubprocessError):
             continue
         values = result.stdout.strip().splitlines()
-        if values and values[0].startswith("100."):
-            return values[0]
+        if not values:
+            continue
+        try:
+            address = ipaddress.ip_address(values[0])
+        except ValueError:
+            continue
+        if address in network:
+            return str(address)
     return None
 
 
