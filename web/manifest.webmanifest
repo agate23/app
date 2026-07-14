@@ -1,17 +1,14 @@
 {
   "name": "Agate Remote",
   "short_name": "Agate Remote",
-  "description": "Controle seguro do PC pelo celular na rede local.",
+  "description": "Controle o computador pelo celular.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#09070f",
-  "theme_color": "#7c3aed",
+  "background_color": "#100d17",
+  "theme_color": "#171221",
+  "orientation": "portrait-primary",
   "icons": [
-    {
-      "src": "/icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
-    }
+    {"src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable"}
   ]
 }
