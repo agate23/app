@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+  <meta name="theme-color" content="#171221">
+  <title>Agate Remote</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icon.svg">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <section id="pairView" class="center-card">
+    <div class="brand-mark">AR</div>
+    <h1>Agate Remote</h1>
+    <p>Conecte ao computador com o PIN mostrado no agente.</p>
+    <input id="pinInput" inputmode="numeric" maxlength="6" placeholder="PIN de 6 dígitos" autocomplete="one-time-code">
+    <button id="pairButton" class="primary">Conectar</button>
+    <p id="pairError" class="error"></p>
+  </section>
+
+  <main id="appView" hidden>
+    <header>
+      <div><strong>Agate Remote</strong><small id="computerName">PC</small></div>
+      <div id="connectionBadge" class="badge">Conectando</div>
+    </header>
+
+    <section id="tab-control" class="tab active">
+      <div class="metrics">
+        <span>CPU <b id="cpuValue">--</b>%</span>
+        <span>RAM <b id="memoryValue">--</b>%</span>
+        <span>Bateria <b id="batteryValue">--</b></span>
+      </div>
+      <div id="trackpad" class="trackpad">
+        <span>Deslize para mover</span>
+        <small>Toque: clique • toque duplo: duplo clique</small>
+      </div>
+      <div class="button-grid three">
+        <button data-click="left">Clique</button>
+        <button data-click="right">Direito</button>
+        <button data-click="middle">Meio</button>
+        <button data-scroll="5">Rolar ↑</button>
+        <button data-action='{"action":"lock"}'>Bloquear PC</button>
+        <button data-scroll="-5">Rolar ↓</button>
+      </div>
+      <textarea id="textInput" placeholder="Digite um texto para enviar ao PC"></textarea>
+      <div class="button-row">
+        <button id="sendText" class="primary">Enviar texto</button>
+        <button id="pasteClipboard">Puxar clipboard</button>
+      </div>
+      <div class="keyboard-row" id="specialKeys"></div>
+      <h2>Mídia</h2>
+      <div class="button-grid three" id="mediaButtons"></div>
+    </section>
+
+    <section id="tab-screen" class="tab">
+      <div class="screen-toolbar">
+        <label>FPS <select id="fpsSelect"><option>10</option><option selected>20</option><option>30</option></select></label>
+        <label>Qualidade <select id="qualitySelect"><option>50</option><option selected>70</option><option>90</option></select></label>
+        <button id="startScreen" class="primary">Iniciar tela</button>
+      </div>
+      <video id="screenVideo" autoplay playsinline muted></video>
+      <p class="hint">O vídeo usa WebRTC dentro da rede local ou do Tailscale.</p>
+    </section>
+
+    <section id="tab-profiles" class="tab">
+      <div class="section-title"><h2>Perfis</h2><button id="toggleEditor">Editar</button></div>
+      <div id="profileTabs" class="chips"></div>
+      <div id="profileActions" class="button-grid two"></div>
+      <div id="profileEditor" class="editor" hidden>
+        <div class="button-row"><button id="addProfile">Novo perfil</button><button id="saveProfiles" class="primary">Salvar alterações</button></div>
+        <div id="editorProfiles"></div>
+      </div>
+    </section>
+
+    <section id="tab-files" class="tab">
+      <h2>Transferência segura</h2>
+      <p class="hint">Os arquivos ficam em Downloads/AgateRemote. Coloque arquivos nessa pasta no PC para baixá-los no celular.</p>
+      <input id="fileInput" type="file">
+      <button id="uploadButton" class="primary">Enviar para o PC</button>
+      <progress id="uploadProgress" value="0" max="100" hidden></progress>
+      <div class="section-title"><h3>Arquivos compartilhados</h3><button id="refreshFiles">Atualizar</button></div>
+      <div id="fileList" class="file-list"></div>
+    </section>
+
+    <section id="tab-settings" class="tab">
+      <h2>Conexão</h2>
+      <div id="serverInfo" class="info-card"></div>
+      <button id="installPwa">Instalar no celular</button>
+      <button id="logoutButton" class="danger">Desconectar este celular</button>
+      <p class="hint">Para usar fora de casa, conecte o PC e o celular ao mesmo Tailscale. Não abra a porta no roteador.</p>
+    </section>
+
+    <nav>
+      <button data-tab="control" class="active">Controle</button>
+      <button data-tab="screen">Tela</button>
+      <button data-tab="profiles">Perfis</button>
+      <button data-tab="files">Arquivos</button>
+      <button data-tab="settings">Ajustes</button>
+    </nav>
+  </main>
+  <script src="/app.js" defer></script>
+</body>
+</html>
