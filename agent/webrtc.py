@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+from fractions import Fraction
 
 from aiortc import RTCPeerConnection, RTCSessionDescription, VideoStreamTrack
 from av import VideoFrame
@@ -9,6 +10,8 @@ from mss import mss
 from PIL import Image
 
 PEERS: set[RTCPeerConnection] = set()
+VIDEO_CLOCK_RATE = 90_000
+VIDEO_TIME_BASE = Fraction(1, VIDEO_CLOCK_RATE)
 
 
 class DesktopVideoTrack(VideoStreamTrack):
@@ -18,11 +21,13 @@ class DesktopVideoTrack(VideoStreamTrack):
         self.quality = max(30, min(quality, 90))
         self.capture = mss()
         self.monitor = self.capture.monitors[1]
-        self.last_frame = 0.0
+        self.started_at = time.monotonic()
+        self.timestamp = 0
+        self.timestamp_step = round(VIDEO_CLOCK_RATE / self.fps)
 
     async def recv(self) -> VideoFrame:
-        pts, time_base = await self.next_timestamp()
-        remaining = (1 / self.fps) - (time.monotonic() - self.last_frame)
+        target = self.started_at + (self.timestamp / VIDEO_CLOCK_RATE)
+        remaining = target - time.monotonic()
         if remaining > 0:
             await asyncio.sleep(remaining)
         shot = self.capture.grab(self.monitor)
@@ -35,9 +40,9 @@ class DesktopVideoTrack(VideoStreamTrack):
                 Image.Resampling.LANCZOS,
             )
         frame = VideoFrame.from_image(image)
-        frame.pts = pts
-        frame.time_base = time_base
-        self.last_frame = time.monotonic()
+        frame.pts = self.timestamp
+        frame.time_base = VIDEO_TIME_BASE
+        self.timestamp += self.timestamp_step
         return frame
 
     def stop(self) -> None:
