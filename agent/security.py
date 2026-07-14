@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import ipaddress
 import secrets
+import threading
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -44,17 +45,20 @@ class SessionStore:
     def __init__(self, lifetime_hours: int = 12) -> None:
         self.lifetime = timedelta(hours=lifetime_hours)
         self.sessions: dict[str, Session] = {}
+        self.lock = threading.Lock()
 
     def create(self, client_ip: str) -> str:
         token = secrets.token_urlsafe(32)
-        self.sessions[token] = Session(client_ip, datetime.now(timezone.utc) + self.lifetime)
+        with self.lock:
+            self.sessions[token] = Session(client_ip, datetime.now(timezone.utc) + self.lifetime)
         return token
 
     def valid(self, token: str | None, client_ip: str) -> bool:
         if not token:
             return False
-        session = self.sessions.get(token)
-        if not session or session.expires_at <= datetime.now(timezone.utc):
-            self.sessions.pop(token, None)
-            return False
-        return secrets.compare_digest(session.client_ip, client_ip)
+        with self.lock:
+            session = self.sessions.get(token)
+            if not session or session.expires_at <= datetime.now(timezone.utc):
+                self.sessions.pop(token, None)
+                return False
+            return secrets.compare_digest(session.client_ip, client_ip)
