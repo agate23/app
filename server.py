@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+import faulthandler
+import logging
 import socket
+import sys
+from logging.handlers import RotatingFileHandler
 
 import psutil
 import pyautogui
@@ -12,7 +16,19 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from agent.auth import pair, request_ip, require_session, websocket_authorized
-from agent.config import APP_NAME, APP_VERSION, MAX_UPLOAD_MB, PAIR_PIN, PORT, PRIVATE_ONLY, SHARED_DIR, WEB_DIR, access_urls, tailscale_ipv4
+from agent.config import (
+    APP_NAME,
+    APP_VERSION,
+    LOG_FILE,
+    MAX_UPLOAD_MB,
+    PAIR_PIN,
+    PORT,
+    PRIVATE_ONLY,
+    SHARED_DIR,
+    WEB_DIR,
+    access_urls,
+    tailscale_ipv4,
+)
 from agent.files import list_shared_files, resolve_download, save_stream
 from agent.input_control import execute
 from agent.profiles import load_profiles, save_profiles
@@ -21,6 +37,7 @@ from agent.tray import start_tray
 from agent.webrtc import close_all, create_answer
 
 app = FastAPI(title=APP_NAME, version=APP_VERSION, docs_url=None, redoc_url=None)
+_LOG_STREAM = None
 
 
 class PairRequest(BaseModel):
@@ -150,13 +167,59 @@ async def shutdown_event():
 app.mount("/", StaticFiles(directory=WEB_DIR, html=True), name="web")
 
 
+def configure_runtime_logging() -> None:
+    global _LOG_STREAM
+    LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+    if _LOG_STREAM is None or _LOG_STREAM.closed:
+        _LOG_STREAM = LOG_FILE.open("a", encoding="utf-8", buffering=1)
+
+    # Aplicativos PyInstaller sem console deixam stdout/stderr como None. Uvicorn
+    # e bibliotecas de mídia esperam esses canais e podem falhar antes de abrir a porta.
+    if sys.stdout is None:
+        sys.stdout = _LOG_STREAM
+    if sys.stderr is None:
+        sys.stderr = _LOG_STREAM
+
+    root = logging.getLogger()
+    root.setLevel(logging.INFO)
+    if not any(isinstance(handler, RotatingFileHandler) for handler in root.handlers):
+        handler = RotatingFileHandler(LOG_FILE, maxBytes=2_000_000, backupCount=2, encoding="utf-8")
+        handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+        root.addHandler(handler)
+
+    try:
+        faulthandler.enable(_LOG_STREAM)
+    except (RuntimeError, OSError):
+        pass
+
+
 def serve() -> None:
-    uvicorn.run(app, host="0.0.0.0", port=PORT, log_level="info")
+    configure_runtime_logging()
+    logging.getLogger(__name__).info(
+        "Iniciando %s %s em 0.0.0.0:%s; web=%s",
+        APP_NAME,
+        APP_VERSION,
+        PORT,
+        WEB_DIR,
+    )
+    config = uvicorn.Config(
+        app,
+        host="0.0.0.0",
+        port=PORT,
+        log_config=None,
+        access_log=False,
+        loop="asyncio",
+    )
+    server = uvicorn.Server(config)
+    server.run()
+    if not server.started:
+        raise RuntimeError(f"Uvicorn encerrou sem abrir a porta {PORT}.")
 
 
 if __name__ == "__main__":
-    print(f"{APP_NAME} {APP_VERSION}")
-    print(f"PIN de pareamento: {PAIR_PIN}")
-    for url in access_urls():
-        print(f"Acesso: {url}")
-    start_tray(serve)
+    configure_runtime_logging()
+    if "--server-only" in sys.argv:
+        serve()
+    else:
+        logging.getLogger(__name__).info("Abrindo bandeja do %s %s", APP_NAME, APP_VERSION)
+        start_tray(serve)
