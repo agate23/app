@@ -12,7 +12,7 @@ from pathlib import Path
 import psutil
 
 APP_NAME = "Agate Remote"
-APP_VERSION = "2.0.1"
+APP_VERSION = "2.0.2"
 PORT = int(os.getenv("AGATE_REMOTE_PORT", "8765"))
 PRIVATE_ONLY = os.getenv("AGATE_REMOTE_PRIVATE_ONLY", "1") != "0"
 SESSION_HOURS = int(os.getenv("AGATE_REMOTE_SESSION_HOURS", "12"))
@@ -108,7 +108,6 @@ def local_ipv4_candidates() -> list[str]:
 
     if ordered:
         return ordered
-
     try:
         for address in socket.gethostbyname_ex(socket.gethostname())[2]:
             if _is_lan_ipv4(address) and address not in ordered:
