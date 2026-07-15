@@ -37,29 +37,11 @@ class AgateRemoteApp extends StatelessWidget {
   }
 }
 
-class PairingData {
-  const PairingData({required this.url, required this.pin, this.name = 'PC'});
-
-  final String url;
-  final String pin;
-  final String name;
-
-  factory PairingData.fromQr(String raw) {
-    final dynamic decoded = jsonDecode(raw);
-    if (decoded is! Map<String, dynamic>) {
-      throw const FormatException('QR Code inválido.');
-    }
-    final url = (decoded['url'] ?? '').toString().trim();
-    final pin = (decoded['pin'] ?? '').toString().trim();
-    final name = (decoded['name'] ?? 'PC').toString();
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      throw const FormatException('Endereço inválido no QR Code.');
-    }
-    if (pin.length != 6) {
-      throw const FormatException('PIN inválido no QR Code.');
-    }
-    return PairingData(url: normalizeUrl(url), pin: pin, name: name);
-  }
+bool isValidServerUrl(String value) {
+  final uri = Uri.tryParse(value);
+  return uri != null &&
+      (uri.scheme == 'http' || uri.scheme == 'https') &&
+      uri.host.isNotEmpty;
 }
 
 String normalizeUrl(String value) {
@@ -68,6 +50,65 @@ String normalizeUrl(String value) {
     url = 'http://$url';
   }
   return url.endsWith('/') ? url.substring(0, url.length - 1) : url;
+}
+
+class PairingData {
+  const PairingData({
+    required this.url,
+    required this.pin,
+    this.name = 'PC',
+    this.urls = const [],
+  });
+
+  final String url;
+  final String pin;
+  final String name;
+  final List<String> urls;
+
+  List<String> get candidates {
+    final result = <String>[];
+    for (final value in <String>[url, ...urls]) {
+      final normalized = normalizeUrl(value);
+      if (isValidServerUrl(normalized) && !result.contains(normalized)) {
+        result.add(normalized);
+      }
+    }
+    return result;
+  }
+
+  factory PairingData.fromQr(String raw) {
+    final dynamic decoded = jsonDecode(raw);
+    if (decoded is! Map) {
+      throw const FormatException('QR Code inválido.');
+    }
+
+    final map = Map<String, dynamic>.from(decoded);
+    final mainUrl = normalizeUrl((map['url'] ?? '').toString());
+    final pin = (map['pin'] ?? '').toString().trim();
+    final name = (map['name'] ?? 'PC').toString();
+    final urls = <String>[];
+
+    final dynamic rawUrls = map['urls'];
+    if (rawUrls is List) {
+      for (final item in rawUrls) {
+        final candidate = normalizeUrl(item.toString());
+        if (isValidServerUrl(candidate) && !urls.contains(candidate)) {
+          urls.add(candidate);
+        }
+      }
+    }
+    if (isValidServerUrl(mainUrl) && !urls.contains(mainUrl)) {
+      urls.insert(0, mainUrl);
+    }
+    if (urls.isEmpty) {
+      throw const FormatException('Endereço inválido no QR Code.');
+    }
+    if (pin.length != 6) {
+      throw const FormatException('PIN inválido no QR Code.');
+    }
+
+    return PairingData(url: urls.first, pin: pin, name: name, urls: urls);
+  }
 }
 
 class ConnectionPage extends StatefulWidget {
@@ -86,6 +127,13 @@ class _ConnectionPageState extends State<ConnectionPage> {
   void initState() {
     super.initState();
     _restore();
+  }
+
+  @override
+  void dispose() {
+    _url.dispose();
+    _pin.dispose();
+    super.dispose();
   }
 
   Future<void> _restore() async {
@@ -118,18 +166,22 @@ class _ConnectionPageState extends State<ConnectionPage> {
   void _connect() {
     final url = normalizeUrl(_url.text);
     final pin = _pin.text.trim();
-    if ((!url.startsWith('http://') && !url.startsWith('https://')) || pin.length != 6) {
+    if (!isValidServerUrl(url) || pin.length != 6) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Informe o endereço do PC e um PIN de 6 dígitos.')),
+        const SnackBar(
+          content: Text('Informe o endereço do PC e um PIN de 6 dígitos.'),
+        ),
       );
       return;
     }
-    _openRemote(PairingData(url: url, pin: pin));
+    _openRemote(PairingData(url: url, pin: pin, urls: [url]));
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_loading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    if (_loading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
     return Scaffold(
       body: SafeArea(
         child: Center(
@@ -146,18 +198,34 @@ class _ConnectionPageState extends State<ConnectionPage> {
                       const CircleAvatar(
                         radius: 38,
                         backgroundColor: Color(0xFF7C3AED),
-                        child: Text('AR', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                        child: Text(
+                          'AR',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
                       const SizedBox(height: 18),
-                      Text('Agate Remote', textAlign: TextAlign.center, style: Theme.of(context).textTheme.headlineMedium),
+                      Text(
+                        'Agate Remote',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.headlineMedium,
+                      ),
                       const SizedBox(height: 8),
-                      const Text('Controle seu PC pela rede local ou pelo Tailscale.', textAlign: TextAlign.center),
+                      const Text(
+                        'Controle seu PC pela rede local ou pelo Tailscale.',
+                        textAlign: TextAlign.center,
+                      ),
                       const SizedBox(height: 24),
                       TextField(
                         controller: _url,
                         keyboardType: TextInputType.url,
                         autocorrect: false,
-                        decoration: const InputDecoration(labelText: 'Endereço', hintText: 'http://192.168.0.10:8765'),
+                        decoration: const InputDecoration(
+                          labelText: 'Endereço',
+                          hintText: 'http://192.168.0.10:8765',
+                        ),
                       ),
                       const SizedBox(height: 12),
                       TextField(
@@ -167,9 +235,17 @@ class _ConnectionPageState extends State<ConnectionPage> {
                         obscureText: true,
                         decoration: const InputDecoration(labelText: 'PIN'),
                       ),
-                      FilledButton.icon(onPressed: _connect, icon: const Icon(Icons.link), label: const Text('Conectar')),
+                      FilledButton.icon(
+                        onPressed: _connect,
+                        icon: const Icon(Icons.link),
+                        label: const Text('Conectar'),
+                      ),
                       const SizedBox(height: 10),
-                      OutlinedButton.icon(onPressed: _scan, icon: const Icon(Icons.qr_code_scanner), label: const Text('Ler QR Code')),
+                      OutlinedButton.icon(
+                        onPressed: _scan,
+                        icon: const Icon(Icons.qr_code_scanner),
+                        label: const Text('Ler QR Code'),
+                      ),
                     ],
                   ),
                 ),
@@ -202,8 +278,12 @@ class _ScannerPageState extends State<ScannerPage> {
       Navigator.of(context).pop(data);
     } on FormatException catch (error) {
       _handled = true;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message)));
-      Future<void>.delayed(const Duration(seconds: 2), () => _handled = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message)),
+      );
+      Future<void>.delayed(const Duration(seconds: 2), () {
+        if (mounted) _handled = false;
+      });
     }
   }
 
@@ -220,7 +300,10 @@ class _ScannerPageState extends State<ScannerPage> {
               width: 250,
               height: 250,
               decoration: BoxDecoration(
-                border: Border.all(color: const Color(0xFFD8B4FE), width: 3),
+                border: Border.all(
+                  color: const Color(0xFFD8B4FE),
+                  width: 3,
+                ),
                 borderRadius: BorderRadius.circular(24),
               ),
             ),
@@ -230,7 +313,9 @@ class _ScannerPageState extends State<ScannerPage> {
             child: SafeArea(
               child: Padding(
                 padding: EdgeInsets.all(24),
-                child: Text('Aponte para o QR Code exibido pelo agente no Windows.'),
+                child: Text(
+                  'Aponte para o QR Code exibido pelo agente no Windows.',
+                ),
               ),
             ),
           ),
@@ -251,26 +336,56 @@ class RemotePage extends StatefulWidget {
 
 class _RemotePageState extends State<RemotePage> {
   late final WebViewController _controller;
+  late final List<String> _urls;
+  int _urlIndex = 0;
   int _progress = 0;
   String? _error;
   bool _pinInjected = false;
 
+  String get _currentUrl => _urls[_urlIndex];
+
   @override
   void initState() {
     super.initState();
+    _urls = widget.pairing.candidates;
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(const Color(0xFF100D17))
       ..setNavigationDelegate(
         NavigationDelegate(
-          onProgress: (value) => mounted ? setState(() => _progress = value) : null,
-          onWebResourceError: (error) {
-            if (error.isForMainFrame == true && mounted) setState(() => _error = error.description);
+          onProgress: (value) {
+            if (mounted) setState(() => _progress = value);
           },
+          onPageStarted: (_) {
+            _pinInjected = false;
+            if (mounted) setState(() => _error = null);
+          },
+          onWebResourceError: _handleWebError,
           onPageFinished: (_) => _injectPin(),
         ),
       )
-      ..loadRequest(Uri.parse(widget.pairing.url));
+      ..loadRequest(Uri.parse(_currentUrl));
+  }
+
+  void _handleWebError(WebResourceError error) {
+    if (error.isForMainFrame != true) return;
+    if (_urlIndex + 1 < _urls.length) {
+      _urlIndex += 1;
+      _pinInjected = false;
+      if (mounted) {
+        setState(() {
+          _error = null;
+          _progress = 0;
+        });
+      }
+      _controller.loadRequest(Uri.parse(_currentUrl));
+      return;
+    }
+    if (mounted) {
+      setState(() {
+        _error = '${error.description}\n\nEndereços testados:\n${_urls.join('\n')}';
+      });
+    }
   }
 
   Future<void> _injectPin() async {
@@ -299,36 +414,56 @@ class _RemotePageState extends State<RemotePage> {
     return true;
   }
 
+  void _retry() {
+    _urlIndex = 0;
+    _pinInjected = false;
+    setState(() {
+      _error = null;
+      _progress = 0;
+    });
+    _controller.loadRequest(Uri.parse(_currentUrl));
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
-        if (await _handleBack() && context.mounted) Navigator.of(context).pop();
+        if (await _handleBack() && context.mounted) {
+          Navigator.of(context).pop();
+        }
       },
       child: Scaffold(
         appBar: AppBar(
-          title: Text(widget.pairing.name),
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(widget.pairing.name),
+              Text(
+                Uri.parse(_currentUrl).host,
+                style: Theme.of(context).textTheme.labelSmall,
+              ),
+            ],
+          ),
           actions: [
             IconButton(
               tooltip: 'Recarregar',
-              onPressed: () {
-                _pinInjected = false;
-                _error = null;
-                _controller.reload();
-              },
+              onPressed: _retry,
               icon: const Icon(Icons.refresh),
             ),
           ],
           bottom: _progress < 100
-              ? PreferredSize(preferredSize: const Size.fromHeight(3), child: LinearProgressIndicator(value: _progress / 100))
+              ? PreferredSize(
+                  preferredSize: const Size.fromHeight(3),
+                  child: LinearProgressIndicator(value: _progress / 100),
+                )
               : null,
         ),
         body: _error == null
             ? WebViewWidget(controller: _controller)
             : Center(
-                child: Padding(
+                child: SingleChildScrollView(
                   padding: const EdgeInsets.all(24),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -337,11 +472,13 @@ class _RemotePageState extends State<RemotePage> {
                       const SizedBox(height: 12),
                       Text(_error!, textAlign: TextAlign.center),
                       const SizedBox(height: 12),
+                      const Text(
+                        'Confirme que o PC e o celular estão na mesma rede e que a porta 8765 foi liberada no Firewall do Windows.',
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
                       FilledButton(
-                        onPressed: () {
-                          setState(() => _error = null);
-                          _controller.reload();
-                        },
+                        onPressed: _retry,
                         child: const Text('Tentar novamente'),
                       ),
                     ],
