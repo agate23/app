@@ -1,0 +1,58 @@
+[
+  {
+    "id": "copy",
+    "label": "Copiar",
+    "icon": "📋",
+    "type": "hotkey",
+    "value": "ctrl+c"
+  },
+  {
+    "id": "paste",
+    "label": "Colar",
+    "icon": "📥",
+    "type": "hotkey",
+    "value": "ctrl+v"
+  },
+  {
+    "id": "undo",
+    "label": "Desfazer",
+    "icon": "↩️",
+    "type": "hotkey",
+    "value": "ctrl+z"
+  },
+  {
+    "id": "save",
+    "label": "Salvar",
+    "icon": "💾",
+    "type": "hotkey",
+    "value": "ctrl+s"
+  },
+  {
+    "id": "task-manager",
+    "label": "Gerenciador",
+    "icon": "📊",
+    "type": "hotkey",
+    "value": "ctrl+shift+esc"
+  },
+  {
+    "id": "show-desktop",
+    "label": "Área de trabalho",
+    "icon": "🖥️",
+    "type": "hotkey",
+    "value": "win+d"
+  },
+  {
+    "id": "alt-tab",
+    "label": "Trocar janela",
+    "icon": "🔄",
+    "type": "hotkey",
+    "value": "alt+tab"
+  },
+  {
+    "id": "play",
+    "label": "Play/Pause",
+    "icon": "⏯️",
+    "type": "media",
+    "value": "playpause"
+  }
+]

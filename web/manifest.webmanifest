@@ -1,0 +1,14 @@
+{
+  "name": "Agate Remote",
+  "short_name": "Agate Remote",
+  "description": "Controle o computador pelo celular.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#100d17",
+  "theme_color": "#171221",
+  "orientation": "portrait-primary",
+  "icons": [
+    {"src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable"}
+  ]
+}

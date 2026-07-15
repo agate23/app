@@ -1,0 +1,56 @@
+{
+  "profiles": [
+    {
+      "id": "media",
+      "name": "Mídia",
+      "icon": "play_circle",
+      "actions": [
+        {"label": "Anterior", "type": "media", "value": "previous"},
+        {"label": "Play/Pause", "type": "media", "value": "play_pause"},
+        {"label": "Próxima", "type": "media", "value": "next"},
+        {"label": "Volume -", "type": "media", "value": "volume_down"},
+        {"label": "Mudo", "type": "media", "value": "mute"},
+        {"label": "Volume +", "type": "media", "value": "volume_up"}
+      ]
+    },
+    {
+      "id": "presentation",
+      "name": "Apresentação",
+      "icon": "slideshow",
+      "actions": [
+        {"label": "Anterior", "type": "key", "value": "left"},
+        {"label": "Próximo", "type": "key", "value": "right"},
+        {"label": "Iniciar", "type": "key", "value": "f5"},
+        {"label": "Encerrar", "type": "key", "value": "esc"},
+        {"label": "Tela preta", "type": "key", "value": "b"},
+        {"label": "Tela branca", "type": "key", "value": "w"}
+      ]
+    },
+    {
+      "id": "inventory",
+      "name": "Estoque",
+      "icon": "inventory_2",
+      "actions": [
+        {"label": "Pesquisar", "type": "hotkey", "value": ["ctrl", "f"]},
+        {"label": "Salvar", "type": "hotkey", "value": ["ctrl", "s"]},
+        {"label": "Copiar", "type": "hotkey", "value": ["ctrl", "c"]},
+        {"label": "Colar", "type": "hotkey", "value": ["ctrl", "v"]},
+        {"label": "Enter", "type": "key", "value": "enter"},
+        {"label": "Esc", "type": "key", "value": "esc"}
+      ]
+    },
+    {
+      "id": "games",
+      "name": "Jogos",
+      "icon": "sports_esports",
+      "actions": [
+        {"label": "W", "type": "key", "value": "w"},
+        {"label": "A", "type": "key", "value": "a"},
+        {"label": "S", "type": "key", "value": "s"},
+        {"label": "D", "type": "key", "value": "d"},
+        {"label": "Espaço", "type": "key", "value": "space"},
+        {"label": "Esc", "type": "key", "value": "esc"}
+      ]
+    }
+  ]
+}

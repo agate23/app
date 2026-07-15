@@ -1,0 +1,62 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [agent/agate-remote-v2]
+    paths:
+      - "flutter_app/**"
+      - ".github/workflows/build-android.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "flutter_app/**"
+      - ".github/workflows/build-android.yml"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: flutter_app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Criar estrutura Android
+        run: |
+          cp lib/main.dart /tmp/agate-main.dart
+          cp pubspec.yaml /tmp/agate-pubspec.yaml
+          flutter create --platforms=android --org com.agate.remote --project-name agate_remote .
+          cp /tmp/agate-main.dart lib/main.dart
+          cp /tmp/agate-pubspec.yaml pubspec.yaml
+          rm -rf test
+          python tool/prepare_android.py
+      - name: Instalar pacotes
+        run: flutter pub get
+      - name: Analisar projeto
+        continue-on-error: true
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
+      - name: Gerar APK
+        run: |
+          set -o pipefail
+          flutter build apk --debug 2>&1 | tee build.log
+      - name: Enviar log de compilação
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: AgateRemote-Android-logs
+          path: flutter_app/build.log
+          if-no-files-found: warn
+      - name: Enviar APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: AgateRemote-Android
+          path: flutter_app/build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
