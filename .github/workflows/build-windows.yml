@@ -30,14 +30,16 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.11"
           cache: pip
+      - name: Atualizar ferramentas Python
+        run: python -m pip install --upgrade pip setuptools wheel
       - name: Instalar dependências
-        run: pip install -r requirements.txt
+        run: python -m pip install --only-binary=av -r requirements.txt
       - name: Verificar sintaxe
         run: python -m compileall server.py agent
       - name: Gerar executável
-        run: pyinstaller --noconfirm --clean AgateRemote.spec
+        run: python -m PyInstaller --noconfirm --clean AgateRemote.spec
       - name: Enviar executável
         uses: actions/upload-artifact@v4
         with:
