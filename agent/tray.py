@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ctypes
 import json
+import logging
 import os
 import socket
 import subprocess
@@ -48,15 +49,37 @@ def _message(text: str, title: str = APP_NAME, flags: int = 0x40) -> int:
     return int(ctypes.windll.user32.MessageBoxW(None, text, title, flags))
 
 
-def _server_ready(timeout: float = 12.0) -> bool:
+def _server_ready(timeout: float = 25.0) -> bool:
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         try:
             with socket.create_connection(("127.0.0.1", PORT), timeout=0.5):
                 return True
         except OSError:
-            time.sleep(0.2)
+            time.sleep(0.25)
     return False
+
+
+def _tail_log(max_chars: int = 3500) -> str:
+    try:
+        text = LOG_FILE.read_text(encoding="utf-8", errors="replace").strip()
+    except OSError:
+        return "O arquivo de log ainda não foi criado."
+    if not text:
+        return "O arquivo de log está vazio."
+    return text[-max_chars:]
+
+
+def open_log(_icon=None, _item=None) -> None:
+    try:
+        LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        LOG_FILE.touch(exist_ok=True)
+        if os.name == "nt":
+            os.startfile(LOG_FILE)
+        else:
+            webbrowser.open(LOG_FILE.as_uri())
+    except OSError as exc:
+        _message(f"Não foi possível abrir o log.\n\n{exc}", flags=0x10)
 
 
 def _firewall_rule_exists() -> bool:
@@ -114,23 +137,32 @@ def qr_path() -> Path:
 
 
 def start_tray(start_server: Callable[[], None]) -> None:
+    server_failed = threading.Event()
+
     def server_worker() -> None:
         try:
             start_server()
         except BaseException:
-            LOG_FILE.write_text(traceback.format_exc(), encoding="utf-8")
-            _message(
-                f"O servidor do Agate Remote não conseguiu iniciar.\n\nLog: {LOG_FILE}",
-                flags=0x10,
-            )
+            server_failed.set()
+            details = traceback.format_exc()
+            try:
+                with LOG_FILE.open("a", encoding="utf-8") as output:
+                    output.write("\nFALHA FATAL DO SERVIDOR\n")
+                    output.write(details)
+                    output.write("\n")
+            except OSError:
+                pass
+            logging.getLogger(__name__).exception("O servidor do Agate Remote não conseguiu iniciar")
 
     threading.Thread(target=server_worker, daemon=True, name="agate-server").start()
     threading.Thread(target=_offer_firewall_setup, daemon=True, name="agate-firewall").start()
 
     def open_control(_icon=None, _item=None) -> None:
         if not _server_ready():
+            state = "O servidor encerrou durante a inicialização." if server_failed.is_set() else "O servidor não abriu a porta dentro do tempo esperado."
+            details = _tail_log()
             _message(
-                f"O servidor local não respondeu na porta {PORT}.\n\nConsulte o log em:\n{LOG_FILE}",
+                f"{state}\n\nPorta: {PORT}\nLog: {LOG_FILE}\n\nÚltimas informações do log:\n{details}",
                 flags=0x10,
             )
             return
@@ -138,7 +170,10 @@ def start_tray(start_server: Callable[[], None]) -> None:
 
     def show_qr(_icon=None, _item=None) -> None:
         if not _server_ready():
-            _message("O servidor ainda não está pronto.", flags=0x30)
+            _message(
+                f"O servidor ainda não está pronto.\n\nÚltimas informações do log:\n{_tail_log(1800)}",
+                flags=0x30,
+            )
             return
         path = qr_path()
         os.startfile(path) if os.name == "nt" else webbrowser.open(path.as_uri())
@@ -159,6 +194,7 @@ def start_tray(start_server: Callable[[], None]) -> None:
         pystray.MenuItem("Mostrar QR Code", show_qr),
         pystray.MenuItem("Copiar endereços e PIN", copy_pairing),
         pystray.MenuItem("Liberar no Firewall do Windows", request_firewall_rule),
+        pystray.MenuItem("Abrir log de diagnóstico", open_log),
         pystray.MenuItem("Abrir pasta compartilhada", open_shared),
         pystray.Menu.SEPARATOR,
         pystray.MenuItem("Sair", stop),
