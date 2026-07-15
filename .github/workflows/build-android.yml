@@ -44,7 +44,16 @@ jobs:
         continue-on-error: true
         run: flutter analyze --no-fatal-infos --no-fatal-warnings
       - name: Gerar APK
-        run: flutter build apk --debug
+        run: |
+          set -o pipefail
+          flutter build apk --debug 2>&1 | tee build.log
+      - name: Enviar log de compilação
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: AgateRemote-Android-logs
+          path: flutter_app/build.log
+          if-no-files-found: warn
       - name: Enviar APK
         uses: actions/upload-artifact@v4
         with:
