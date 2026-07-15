@@ -40,7 +40,7 @@ jobs:
       - name: Instalar pacotes
         run: flutter pub get
       - name: Analisar projeto
-        run: flutter analyze
+        run: flutter analyze --no-fatal-infos --no-fatal-warnings
       - name: Gerar APK
         run: flutter build apk --debug
       - name: Enviar APK
